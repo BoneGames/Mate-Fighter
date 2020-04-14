@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 namespace MF
 {
@@ -14,55 +15,23 @@ namespace MF
         public Sprite multiple;
     }
 
-
     public class PhoneCamera : MonoBehaviour
     {
+        public Renderer planeRend;
+        public SnapCam snapCam;
         private bool camAvailable = false;
         public WebCamTexture frontCam;
         public RawImage test;
-        //private Texture defaultBackground;
         public GameObject plane;
-        //public RawImage backgroundCANVAS;
-        //public Renderer webCamRend, previewRend;
-        //public AspectRatioFitter fitCANVAS;
         public AspectRatioFitter fitPLANE;
-        //public Image maskImageCANVAS;
-        int scaleToPixel = 100;
-
+        readonly int scaleToPixel = 100;
         public SpritePos[] masks;
-
-        public float camRatio;
-
-        public RenderTexture blitDest;
-
         public Texture2D baseSpriteSINGLE;
-        //public Texture2D baseSpriteMULTIPLE;
-
-        //public Dictionary<string, Sprite> bodyParts = new Dictionary<string, Sprite>();
-
-        //public RawImage masked, super;
-
         public SpritePos currentMask;
-
         public int currentMaskIndex;
-
-        //public Image previewCANVAS;
-
         public float previewFadeTime;
-
-        //public RenderTexture rendTex;
-
-        public Material webCamRendMat;
-
-        bool blit = false;
-
+        public Material webCamRendMat, preview_Mat;
         public Texture2D _scaledMask;
-
-
-        void Start()
-        {
-
-        }
 
         public void SetUpCamera(bool selfieCam)
         {
@@ -71,6 +40,11 @@ namespace MF
             frontCam.Play();
             //background.texture = frontCam;
             webCamRendMat.SetTexture("_MainTex", frontCam);
+        }
+
+        public void ToFight()
+        {
+            SceneManager.LoadScene(2);
         }
 
         WebCamTexture GetCamTex(bool selfieCam)
@@ -87,12 +61,12 @@ namespace MF
 
             for (int i = 0; i < devices.Length; i++)
             {
-                if (devices[i].isFrontFacing && selfieCam)
+                if (!devices[i].isFrontFacing && selfieCam)
                 {
                     camAvailable = true;
                     return new WebCamTexture(devices[i].name);//, Screen.width, Screen.height);
                 }
-                if (!devices[i].isFrontFacing && !selfieCam)
+                if (devices[i].isFrontFacing && !selfieCam)
                 {
                     camAvailable = true;
 
@@ -111,49 +85,69 @@ namespace MF
 
         public void SetPhotoMask(int maskIndex)
         {
-            Sprite mask = masks[maskIndex].single;
+            // Get body part sprite from which button pressed
             currentMask = masks[maskIndex];
-            //maskImageCANVAS.sprite = mask;
-            //previewCANVAS.sprite = mask;
-            Texture2D t = mask.texture;
+            Texture2D t = currentMask.single.texture;
 
-            Vector2 tiling = GetTiling(t);
-            _scaledMask = GetScaledMask(t, tiling);
+            // Get Tile ratio according to screen Plane
+            Vector3 planeTiling = GetPlaneTiling(t);
+            _scaledMask = GetScaledMask(t, planeTiling);
 
-            //webCamRendMat.SetTextureScale("_Mask", tiling);
-
+            // set mask for webcam to render into
             webCamRendMat.SetTexture("_Mask", _scaledMask);
-
-            // sprite image preview
-            //previewCANVAS.canvasRenderer.SetAlpha(1);
-            //previewCANVAS.CrossFadeAlpha(0, previewFadeTime, false);
+            // set preview
+            preview_Mat.mainTexture = _scaledMask;
+            // fade preview out
+            StartCoroutine(FadePreview(preview_Mat));
         }
 
-        Vector3 GetTiling(Texture2D mask)
+        IEnumerator FadePreview(Material preview_Mat)
         {
-            Vector2 maskAspectRatio = new Vector2((plane.transform.localScale.x * scaleToPixel) / mask.width, (plane.transform.localScale.z * scaleToPixel) / mask.height);
-            int xCloserTo1 = Mathf.Abs(maskAspectRatio.x - 1) < Mathf.Abs(maskAspectRatio.y - 1) ? 1 : 0;
+            preview_Mat.color = new Color(1, 1, 1, 1);
+            float alpha = 1;
+            float timer = 0;
+            while (alpha > 0)
+            {
+                alpha = Mathf.Lerp(1, 0, timer / previewFadeTime);
+                timer += Time.deltaTime;
+                preview_Mat.color = new Color(1, 1, 1, alpha);
+                yield return null;
+            }
+        }
+
+        Vector3 GetPlaneTiling(Texture2D mask)
+        {
+            // get mask to screen ratio
+            Vector2 maskToScreenRatio = new Vector2((plane.transform.localScale.x * scaleToPixel) / mask.width, (plane.transform.localScale.z * scaleToPixel) / mask.height);
+            int xCloserTo1 = Mathf.Abs(maskToScreenRatio.x - 1) < Mathf.Abs(maskToScreenRatio.y - 1) ? 1 : 0;
             if (xCloserTo1 == 1)
-                return new Vector3(1, maskAspectRatio.y / maskAspectRatio.x, xCloserTo1);
+                return new Vector3(1, maskToScreenRatio.y / maskToScreenRatio.x, xCloserTo1);
             else
-                return new Vector3(maskAspectRatio.x / maskAspectRatio.y, 1, xCloserTo1);
+                return new Vector3(maskToScreenRatio.x / maskToScreenRatio.y, 1, xCloserTo1);
         }
 
         Texture2D GetScaledMask(Texture2D mask, Vector3 tiling)
         {
+            // make plane sized texture
             Texture2D output = new Texture2D((int)plane.transform.localScale.x * scaleToPixel, (int)plane.transform.localScale.z * scaleToPixel);
-            Texture2D scaledSingle = TextureScaler.scaled(mask, (int)(output.width / tiling.x), (int)(output.height / tiling.y));
-            //test.texture = scaledSingle;
+            // scale mask to fit plane aspect ratio
+            Texture2D scaledSingle = TextureScaler.scaled(mask, (int)((float)output.width / tiling.x), (int)((float)output.height / tiling.y));
+            // commit new pixels to memory
+            scaledSingle.Apply();
+            // create offset to centre it
             Vector2Int offset = tiling.z == 0 ? new Vector2Int((output.width - scaledSingle.width) / 2, 0) : new Vector2Int(0, (output.height - scaledSingle.height) / 2);
+            // save scaling info for later
+            //currentMaskInfo = new ScaledMaskInfo(scaledSingle, offset, tiling);
 
-            int pixelWidth = mask.width + (offset.x * 2);
-            int pixelHeight = mask.height + (offset.y * 2);
+            // cancel out screen aspect ratio for square pixels
+            float pixelWidth = mask.width * tiling.x;
+            float pixelHeight = mask.height * tiling.y;
 
+            // set webcamTex & Mask overlay to match pixel count of original mask texture
             webCamRendMat.SetFloat("_MaskXPixelCount", pixelWidth);
             webCamRendMat.SetFloat("_MaskYPixelCount", pixelHeight);
             webCamRendMat.SetFloat("_XPixelCount", pixelWidth);
             webCamRendMat.SetFloat("_YPixelCount", pixelHeight);
-
 
             // make all transparent
             for (int i = 0; i < output.width; i++)
@@ -163,6 +157,7 @@ namespace MF
                     output.SetPixel(i, j, new Color(0, 0, 0, 0));
                 }
             }
+
             // write mask to center
             for (int i = 0; i < scaledSingle.width; i++)
             {
@@ -176,84 +171,45 @@ namespace MF
             return output;
         }
 
-
-
-
-        //IEnumerator CrossFadeAlpha()
+        //void Update()
         //{
-        //    Texture2D tex = webCamRendMat.GetTexture("_Mask") as Texture2D;
+        //    //if (blit)
+        //    //    Graphics.Blit(webCamRendMat.GetTexture("_MainTex"), blitDest, webCamRendMat);
+
+        //    if (!camAvailable)
+        //        return;
+
+        //    if (Input.touchCount > 0)
+        //    {
+
+        //    }
+
+        //    camRatio = ((float)frontCam.width / (float)frontCam.height);// * (canvasRect.sizeDelta.x / canvasRect.sizeDelta.y);
+
+        //    //fitCANVAS.aspectRatio = camRatio;
+        //    //fitPLANE.aspectRatio = camRatio;
+
+        //    float scaleY = frontCam.videoVerticallyMirrored ? -1f : 1f;
+        //    ///backgroundCANVAS.rectTransform.localScale = new Vector3(1f, scaleY, 1f);
+
+        //    int orient = -frontCam.videoRotationAngle;
+        //    //backgroundCANVAS.rectTransform.localEulerAngles = new Vector3(0, 0, orient);
 
         //}
 
-        // Update is called once per frame
-        void Update()
+        public bool SameColorIgnoreAlpha(Color pixel, Color bg)
         {
-            if(blit)
+            Vector3 colors = new Vector3(pixel.r, pixel.g, pixel.b);
+            Vector3 bgs = new Vector3(bg.r, bg.g, bg.b);
+            if (colors == bgs)
             {
-
+                return true;
             }
-
-            if (!camAvailable)
-                return;
-
-            if (Input.touchCount > 0)
-            {
-
-            }
-
-            camRatio = ((float)frontCam.width / (float)frontCam.height);// * (canvasRect.sizeDelta.x / canvasRect.sizeDelta.y);
-
-            //fitCANVAS.aspectRatio = camRatio;
-            //fitPLANE.aspectRatio = camRatio;
-
-            float scaleY = frontCam.videoVerticallyMirrored ? -1f : 1f;
-            ///backgroundCANVAS.rectTransform.localScale = new Vector3(1f, scaleY, 1f);
-
-            int orient = -frontCam.videoRotationAngle;
-            //backgroundCANVAS.rectTransform.localEulerAngles = new Vector3(0, 0, orient);
-
+            return false;
         }
 
-        bool SameSize(Texture2D a, Texture2D b)
+        Vector2 GetDimensions(Texture2D mask, Texture2D camImage)
         {
-            if (a.width != b.width)
-            {
-                Debug.Log(a.name + " has a different width to " + b.name);
-                return false;
-            }
-            if (a.height != b.height)
-            {
-                Debug.Log(a.name + " has a different height to " + b.name);
-                return false;
-            }
-            return true;
-        }
-
-        Texture2D GetMaskedTexture()
-        {
-            // ref to mask image
-            //Texture2D mask = maskImageCANVAS.sprite.texture;
-
-            Texture2D mask = webCamRendMat.GetTexture("_Mask") as Texture2D;
-
-            //RenderTexture rt = (RenderTexture)webCamRendMat.GetTexture("_MainTex");
-
-            Material _m = Resources.Load("PixelateWebcam_R") as Material;
-            Material _mP = Resources.Load("Preview_Mat 1") as Material;
-
-            _m.SetTexture("_Mask", _scaledMask);
-
-            Graphics.Blit(webCamRendMat.GetTexture("_MainTex"), _mP);
-            blit = true;
-
-
-            // create file container
-            //Texture2D camImage = new Texture2D(frontCam.width, frontCam.height);
-            Texture2D camImage = new Texture2D(mask.width, mask.height);
-
-            // cast camTex to Tex2D
-            camImage.SetPixels(frontCam.GetPixels());
-            // get mask aspect ratio parts
             float maskX = (float)mask.width;
             float maskY = (float)mask.height;
             // sum of sqr parts used as denominator to get unit vector
@@ -264,13 +220,26 @@ namespace MF
             Vector2 dimensions = new Vector2();
             // stop crashing...
             int counter = 0;
-            // increase magnitude until one dimension hist screen edge
-            while (dimensions.x < frontCam.width && dimensions.y < frontCam.height && counter < 500)
+            // increase magnitude until one dimension hits screen edge
+            while (dimensions.x < camImage.width && dimensions.y < camImage.height && counter < 1000)
             {
-                counter++;
+                if ((camImage.width - dimensions.x) > unitVec.x * 100 && (camImage.height - dimensions.y) > unitVec.y * 100)
+                {
+                    dimensions = new Vector2(dimensions.x + unitVec.x * 100, dimensions.y + unitVec.y * 100);
+                }
                 dimensions = new Vector2(dimensions.x + unitVec.x, dimensions.y + unitVec.y);
+                counter++;
             }
 
+            return dimensions;
+        }
+
+        Texture2D GetMaskedTexture()
+        {
+            // screenshot
+            Texture2D camImage = snapCam.SnapShot();
+            // dimensions of scaled up mask
+            Vector2 dimensions = GetDimensions(currentMask.single.texture, camImage);
             // create new image container
             Texture2D croppedCamImage = new Texture2D((int)dimensions.x, (int)dimensions.y);
             // get axis differentials (one of them should be 0)
@@ -278,47 +247,32 @@ namespace MF
             int heightDiff = camImage.height - croppedCamImage.height;
 
             // write new pixels (effectively cropping out 2 bars on x or y axis)
+            Color bg = Camera.main.backgroundColor;
             for (int x = 0; x < croppedCamImage.width; x++)
             {
                 for (int y = 0; y < croppedCamImage.height; y++)
                 {
-                    int xCoord = x + (int)(widthDiff / 2);
-                    int yCoord = y + (int)(heightDiff / 2);
-                    croppedCamImage.SetPixel(x, y, camImage.GetPixel(xCoord, yCoord));
+                    int xOffset = (int)((float)widthDiff / 2f);
+                    int yOffset = (int)((float)heightDiff / 2f);
+                    int xCoord = x + xOffset;
+                    int yCoord = y + yOffset;
+                    Color pixel = camImage.GetPixel(xCoord, yCoord);
+                    if (SameColorIgnoreAlpha(pixel, bg))
+                    {
+                        pixel = new Color(0, 0, 0, 0);
+                    }
+                    croppedCamImage.SetPixel(x, y, pixel);
                 }
             }
 
-            //croppedCamImage.Apply();
-            //return croppedCamImage;
-            Debug.Log("CCH: " + croppedCamImage.height + ", CCW: " + croppedCamImage.width + "; MH: " + mask.height + ", MW: " + mask.width);
-            // scale Cam Image to Mask Image size
-            croppedCamImage = TextureScaler.scaled(croppedCamImage, mask.width, mask.height);
-            // check same size
-            if (!SameSize(mask, croppedCamImage))
-                return croppedCamImage;
-
-            // create masked Image
-            for (int x = 0; x < croppedCamImage.width; x++)
-            {
-                for (int y = 0; y < croppedCamImage.height; y++)
-                {
-                    if (mask.GetPixel(x, y).a > 0.5f)
-                        croppedCamImage.SetPixel(x, y, croppedCamImage.GetPixel(x, y));
-                    else
-                        croppedCamImage.SetPixel(x, y, new Color(1f, 1f, 1f, 0f));
-                }
-            }
-
+            croppedCamImage = TextureScaler.scaled(croppedCamImage, (int)currentMask.multiple.rect.width, (int)currentMask.multiple.rect.height);
             croppedCamImage.Apply();
-            //test.texture = croppedCamImage;
-            test.texture = blitDest;
+
             return croppedCamImage;
         }
 
         void SuperImposeTex(Texture2D _snapshot)
         {
-            //Texture2D _baseSprite = baseSpriteSINGLE;
-
             Vector2 offset = currentMask.multiple.rect.position;
 
             // paste _snapShot onto base sprite
@@ -331,8 +285,6 @@ namespace MF
             }
 
             baseSpriteSINGLE.Apply();
-
-            //return _baseSprite;
         }
 
         public void DefaultTex()
@@ -342,9 +294,10 @@ namespace MF
 
         public void ResetAllTextures()
         {
-            foreach (var item in masks)
+            for (int i = 0; i < masks.Length; i++)
             {
-                SuperImposeTex(item.single.texture);
+                currentMask = masks[i];
+                SuperImposeTex(masks[i].single.texture);
             }
         }
 

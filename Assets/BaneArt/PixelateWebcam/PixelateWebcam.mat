@@ -9,9 +9,9 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: PixelateWebcam
   m_Shader: {fileID: 4800000, guid: 17a681d83f02dc747ba0ca0da0cfdbd1, type: 3}
-  m_ShaderKeywords: _MANUALMASKPIXELISATION_ON
+  m_ShaderKeywords: 
   m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
+  m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
@@ -39,10 +39,10 @@ Material:
     - _Cutoff: 0.3
     - _Float0: 64
     - _Float1: 64
-    - _ManualMaskPixelisation: 1
-    - _MaskXPixelCount: 108
-    - _MaskYPixelCount: 70
-    - _XPixelCount: 108
-    - _YPixelCount: 70
+    - _ManualMaskPixelisation: 0
+    - _MaskXPixelCount: 134.52028
+    - _MaskYPixelCount: 66
+    - _XPixelCount: 134.52028
+    - _YPixelCount: 66
     - __dirty: 0
     m_Colors: []

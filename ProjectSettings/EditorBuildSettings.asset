@@ -6,6 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Camera_Test.unity
+    path: Assets/Scenes/StartScreen.unity
+    guid: 373fbb0db6f554dfc8c78d23d8667e8d
+  - enabled: 1
+    path: Assets/Scenes/Character_Setup.unity
     guid: 246bd5a71ea50564288ac7dc86de7a4d
+  - enabled: 1
+    path: Assets/Scenes/Fight_Scene.unity
+    guid: 0a99a7f5782fab24191f8456c410ead3
   m_configObjects: {}

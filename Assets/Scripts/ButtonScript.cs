@@ -4,17 +4,21 @@ using UnityEngine.SceneManagement;
 
 public class ButtonScript : MonoBehaviour {
 
-	public void ToFightScene()
+    public void LoadScene(int scene)
+    {
+        if(scene == -1)
+        {
+            Quit();
+            return;
+        }
+        SceneManager.LoadScene(scene);
+    }
+
+
+	void Quit()
 	{
-		SceneManager.LoadScene(1);
-	}
-	public void Quit()
-	{
-		Application.Quit();
 		Debug.Log("You Quit");
+		Application.Quit();
 	}
-	public void MainMenu()
-	{
-		SceneManager.LoadScene(0);
-	}
+	
 }
