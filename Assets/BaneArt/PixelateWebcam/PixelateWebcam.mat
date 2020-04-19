@@ -40,9 +40,9 @@ Material:
     - _Float0: 64
     - _Float1: 64
     - _ManualMaskPixelisation: 0
-    - _MaskXPixelCount: 134.52028
-    - _MaskYPixelCount: 66
-    - _XPixelCount: 134.52028
-    - _YPixelCount: 66
+    - _MaskXPixelCount: 499.29852
+    - _MaskYPixelCount: 177
+    - _XPixelCount: 499.29852
+    - _YPixelCount: 177
     - __dirty: 0
     m_Colors: []
